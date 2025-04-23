@@ -14,10 +14,17 @@ import Dashboard from "./pages/Dashboard";
 import UserManagement from "./pages/admin/UserManagement";
 import { RequireAuth, RequireAdmin } from "./middleware/authMiddleware";
 import Profile from "./pages/Profile";
+import CreateQuiz from './pages/CreateQuiz';
+import GameHost from './components/GameHost';
+import GamePlayer from './components/GamePlayer';
+import GameResults from './components/GameResults';
+import Header from './components/Header';
+import CreateQuestion from './components/CreateQuestion';
 
 function App() {
   return (
-    <div className="app">
+    <div className="App">
+      <Header />
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
@@ -29,6 +36,10 @@ function App() {
         <Route path="/sciencenature" element={<ScienceNaturePage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+
+        {/* Quiz Routes */}
+        <Route path="/create-quiz" element={<CreateQuiz />} />
+        <Route path="/create-question" element={<CreateQuestion />} />
 
         {/* Protected Routes */}
         <Route
@@ -57,6 +68,11 @@ function App() {
             </RequireAdmin>
           }
         />
+
+        {/* Game Routes */}
+        <Route path="/host" element={<GameHost />} />
+        <Route path="/join" element={<GamePlayer />} />
+        <Route path="/results" element={<GameResults />} />
       </Routes>
     </div>
   );
