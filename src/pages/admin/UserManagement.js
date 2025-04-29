@@ -37,44 +37,28 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [error, setError] = useState(null);
 
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down("md"));
 
-  useEffect(() => {
-    fetchUsers();
-  }, [page, rowsPerPage, searchQuery]);
-  // useEffect(() => {
-  //   console.log("Dữ liệu users đã được cập nhật:", users);
-  // }, [users]);
-
-  const fetchUsers = async () => {
+  const loadUsers = async () => {
     try {
       setLoading(true);
-
-      let response;
-      if (searchQuery.trim() !== "") {
-        response = await userService.searchUserByUserName(searchQuery);
-      } else {
-        response = await userService.getUsers(page + 1, rowsPerPage);
-      }
-
-      console.log("Toàn bộ Response:", response);
-
-      if (Array.isArray(response)) {
-        setUsers(response);
-        setTotalUsers(response.length);
-      } else {
-        setUsers([]);
-        setTotalUsers(0);
-      }
+      const response = await userService.getUsers(page + 1, rowsPerPage);
+      setUsers(response.data.users);
+      setTotalUsers(response.data.total);
     } catch (error) {
-      toast.error("Lấy dữ liệu người dùng thất bại");
-      console.error("Lỗi khi lấy dữ liệu người dùng:", error);
+      console.error('Error loading users:', error);
+      setError('Failed to load users');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadUsers();
+  }, [page, rowsPerPage]);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -85,9 +69,25 @@ const UserManagement = () => {
     setPage(0);
   };
 
-  const handleSearch = (event) => {
+  const handleSearch = async (event) => {
     setSearchQuery(event.target.value);
     setPage(0);
+    
+    try {
+      setLoading(true);
+      if (event.target.value.trim()) {
+        const response = await userService.searchUserByUserName(event.target.value);
+        setUsers(response.data.users);
+        setTotalUsers(response.data.total);
+      } else {
+        loadUsers();
+      }
+    } catch (error) {
+      console.error('Error searching users:', error);
+      setError('Failed to search users');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleOpenForm = (user = null) => {
@@ -117,7 +117,7 @@ const UserManagement = () => {
       }
 
       handleCloseForm();
-      fetchUsers();
+      loadUsers();
     } catch (error) {
       console.error("Error handling user:", error);
       toast.error(error.response?.data?.message || "Operation failed");
@@ -130,7 +130,7 @@ const UserManagement = () => {
       toast.success("User deleted successfully");
       setIsDeleteDialogOpen(false);
       setSelectedUser(null);
-      fetchUsers();
+      loadUsers();
     } catch (error) {
       toast.error("Failed to delete user");
     }
@@ -193,33 +193,31 @@ const UserManagement = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                users
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((user) => (
-                    <TableRow key={user.user_id}>
-                      <TableCell>{user.username}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.role}</TableCell>
-                      <TableCell>{user.created_at}</TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          color="primary"
-                          onClick={() => handleOpenForm(user)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          color="error"
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setIsDeleteDialogOpen(true);
-                          }}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))
+                users.map((user) => (
+                  <TableRow key={user.user_id}>
+                    <TableCell>{user.username}</TableCell>
+                    <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.role}</TableCell>
+                    <TableCell>{user.created_at}</TableCell>
+                    <TableCell align="right">
+                      <IconButton
+                        color="primary"
+                        onClick={() => handleOpenForm(user)}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        color="error"
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setIsDeleteDialogOpen(true);
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>

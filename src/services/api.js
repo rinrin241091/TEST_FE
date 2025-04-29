@@ -85,6 +85,26 @@ export const createQuiz = (quizData) => api.post("/quizzes", quizData);
 export const updateQuiz = (id, quizData) => api.put(`/quizzes/${id}`, quizData);
 export const deleteQuiz = (id) => api.delete(`/quizzes/${id}`);
 
+const getExplanation = async (questionId) => {
+  try {
+    const response = await axios.get(`${API_URL}/questions/${questionId}/explanation`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting explanation:', error);
+    throw error;
+  }
+};
+
+const getGameResults = async (gamePin) => {
+  try {
+    const response = await axios.get(`${API_URL}/games/${gamePin}/results`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting game results:', error);
+    throw error;
+  }
+};
+
 export const questionService = {
   createQuestion: async (questionData) => {
     try {
@@ -120,7 +140,10 @@ export const questionService = {
     } catch (error) {
       throw error.response?.data || error;
     }
-  }
+  },
+
+  getExplanation,
+  getGameResults
 };
 
 export default api;

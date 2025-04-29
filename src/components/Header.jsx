@@ -29,15 +29,15 @@ const Header = () => {
           <Box sx={{ display: 'flex', gap: 2 }}>
             <Button
               color="inherit"
-              onClick={() => navigate('/create')}
+              onClick={() => navigate('/create-quiz')}
             >
-              Create Quiz
+              CREATE QUIZ
             </Button>
             <Button
               color="inherit"
-              onClick={() => navigate('/join')}
+              onClick={() => navigate('/')}
             >
-              Join Game
+              JOIN GAME
             </Button>
           </Box>
         </Toolbar>

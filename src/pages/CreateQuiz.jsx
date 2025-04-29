@@ -8,10 +8,18 @@ import {
   Stepper,
   Step,
   StepLabel,
-  Paper
+  Paper,
+  TextField,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton
 } from '@mui/material';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import CreateQuestion from '../components/CreateQuestion';
-import socketService from '../services/socket';
+import { questionService } from '../services/api';
+import { socketService } from '../services/socket';
 
 const steps = ['Create Questions', 'Create Room'];
 
@@ -19,38 +27,64 @@ const CreateQuiz = () => {
   const navigate = useNavigate();
   const [activeStep, setActiveStep] = useState(0);
   const [questions, setQuestions] = useState([]);
+  const [quizTitle, setQuizTitle] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const [gamePin, setGamePin] = useState(null);
+  const [showPinDialog, setShowPinDialog] = useState(false);
 
   const handleQuestionCreated = (question) => {
     setQuestions(prev => [...prev, question]);
   };
 
-  const handleCreateRoom = async () => {
+  const handleCreateQuiz = async () => {
     if (questions.length === 0) {
-      alert('Please create at least one question');
+      setError('Please create at least one question');
       return;
     }
 
-    // Connect to socket
-    const socket = socketService.connect();
+    setLoading(true);
+    try {
+      // 1. Create quiz in database
+      const response = await questionService.createQuiz({
+        title: quizTitle || `Quiz ${new Date().toLocaleDateString()}`,
+        questions: questions
+      });
 
-    // Create game room
-    socketService.createGame(questions);
+      if (response.success) {
+        // 2. Create game room with socket
+        socketService.connect();
+        socketService.createGame(response.data.quiz);
 
-    // Listen for game creation response
-    socketService.onGameCreated(({ gamePin, gameId }) => {
-      setGamePin(gamePin);
-      setActiveStep(1);
-    });
+        // 3. Listen for game creation response
+        socketService.onGameCreated(({ gamePin }) => {
+          setGamePin(gamePin);
+          setShowPinDialog(true);
+          setActiveStep(1);
+        });
 
-    // Listen for errors
-    socketService.onError(({ message }) => {
-      alert(message);
-    });
+        // Handle errors
+        socketService.onError(({ message }) => {
+          setError(message);
+          setLoading(false);
+        });
+      }
+    } catch (error) {
+      setError(error.message || 'Failed to create quiz');
+      setLoading(false);
+    }
+  };
+
+  const handleCopyPin = () => {
+    navigator.clipboard.writeText(gamePin);
   };
 
   const handleStartGame = () => {
     navigate(`/game/host/${gamePin}`);
+  };
+
+  const handleCloseDialog = () => {
+    setShowPinDialog(false);
   };
 
   return (
@@ -70,6 +104,19 @@ const CreateQuiz = () => {
 
         {activeStep === 0 ? (
           <>
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Quiz Title
+              </Typography>
+              <TextField
+                fullWidth
+                label="Enter quiz title"
+                value={quizTitle}
+                onChange={(e) => setQuizTitle(e.target.value)}
+                placeholder="Enter quiz title"
+              />
+            </Paper>
+
             <CreateQuestion onQuestionCreated={handleQuestionCreated} />
             
             <Box sx={{ mt: 3, textAlign: 'center' }}>
@@ -79,21 +126,29 @@ const CreateQuiz = () => {
               <Button
                 variant="contained"
                 color="primary"
-                onClick={handleCreateRoom}
-                disabled={questions.length === 0}
+                onClick={handleCreateQuiz}
+                disabled={questions.length === 0 || loading}
                 sx={{ mt: 2 }}
               >
-                Create Room
+                {loading ? 'Creating...' : 'Create Quiz & Room'}
               </Button>
+              {error && (
+                <Typography color="error" sx={{ mt: 2 }}>
+                  {error}
+                </Typography>
+              )}
             </Box>
           </>
         ) : (
           <Paper sx={{ p: 4, textAlign: 'center' }}>
             <Typography variant="h5" gutterBottom>
-              Room Created!
+              Room Created Successfully!
             </Typography>
             <Typography variant="h3" color="primary" sx={{ my: 3 }}>
               PIN: {gamePin}
+              <IconButton onClick={handleCopyPin} color="primary">
+                <ContentCopyIcon />
+              </IconButton>
             </Typography>
             <Typography variant="body1" sx={{ mb: 3 }}>
               Share this PIN with your players to let them join the game.
@@ -109,6 +164,28 @@ const CreateQuiz = () => {
           </Paper>
         )}
       </Box>
+
+      {/* PIN Dialog */}
+      <Dialog open={showPinDialog} onClose={handleCloseDialog}>
+        <DialogTitle>Room Created!</DialogTitle>
+        <DialogContent>
+          <Typography variant="h4" color="primary" sx={{ my: 2 }}>
+            PIN: {gamePin}
+            <IconButton onClick={handleCopyPin} color="primary">
+              <ContentCopyIcon />
+            </IconButton>
+          </Typography>
+          <Typography>
+            Share this PIN with your players to let them join the game.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Close</Button>
+          <Button onClick={handleStartGame} variant="contained" color="primary">
+            Start Game
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

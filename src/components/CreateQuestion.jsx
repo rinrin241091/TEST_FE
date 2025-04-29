@@ -24,12 +24,15 @@ const CreateQuestion = ({ onQuestionCreated }) => {
     content: '',
     type: 'multiple_choice',
     options: ['', ''],
-    correctAnswer: ''
+    correctAnswer: '',
+    time_limit: 30,
+    points: 10
   });
 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -70,13 +73,9 @@ const CreateQuestion = ({ onQuestionCreated }) => {
     setError('');
     setSuccess('');
     setLoading(true);
+    setShowAlert(true);
 
     // Validation
-    if (!question.title.trim()) {
-      setError('Title is required');
-      setLoading(false);
-      return;
-    }
     if (!question.content.trim()) {
       setError('Question content is required');
       setLoading(false);
@@ -94,12 +93,18 @@ const CreateQuestion = ({ onQuestionCreated }) => {
     }
 
     try {
-      const response = await questionService.createQuestion(question);
+      const response = await questionService.createQuestion({
+        title: question.title || question.content.substring(0, 50),
+        content: question.content,
+        type: question.type,
+        options: question.options,
+        correctAnswer: question.correctAnswer
+      });
       
       if (response.success) {
         setSuccess('Question created successfully!');
         if (onQuestionCreated) {
-          onQuestionCreated(response.data.question);
+          onQuestionCreated(response.data);
         }
         // Reset form
         setQuestion({
@@ -107,7 +112,9 @@ const CreateQuestion = ({ onQuestionCreated }) => {
           content: '',
           type: 'multiple_choice',
           options: ['', ''],
-          correctAnswer: ''
+          correctAnswer: '',
+          time_limit: 30,
+          points: 10
         });
       }
     } catch (error) {
@@ -115,6 +122,10 @@ const CreateQuestion = ({ onQuestionCreated }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCloseAlert = () => {
+    setShowAlert(false);
   };
 
   return (
@@ -128,11 +139,10 @@ const CreateQuestion = ({ onQuestionCreated }) => {
           <Grid item xs={12}>
             <TextField
               fullWidth
-              label="Question Title"
+              label="Title (Optional)"
               name="title"
               value={question.title}
               onChange={handleInputChange}
-              required
             />
           </Grid>
 
@@ -220,7 +230,6 @@ const CreateQuestion = ({ onQuestionCreated }) => {
               type="submit"
               variant="contained"
               color="primary"
-              size="large"
               fullWidth
               disabled={loading}
             >
@@ -231,18 +240,12 @@ const CreateQuestion = ({ onQuestionCreated }) => {
       </Box>
 
       <Snackbar
-        open={!!error || !!success}
+        open={showAlert && (Boolean(error) || Boolean(success))}
         autoHideDuration={6000}
-        onClose={() => {
-          setError('');
-          setSuccess('');
-        }}
+        onClose={handleCloseAlert}
       >
         <Alert
-          onClose={() => {
-            setError('');
-            setSuccess('');
-          }}
+          onClose={handleCloseAlert}
           severity={error ? 'error' : 'success'}
           sx={{ width: '100%' }}
         >

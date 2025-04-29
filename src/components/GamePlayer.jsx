@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -13,7 +14,7 @@ import {
   CircularProgress,
   Grid
 } from '@mui/material';
-import socketService from '../services/socket';
+import { socketService } from '../services/socket.js';
 
 const GamePlayer = () => {
   const [playerName, setPlayerName] = useState('');

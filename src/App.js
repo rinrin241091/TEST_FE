@@ -2,7 +2,7 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
 import "./App.css";
-import HomePage from "./pages/HomePage";
+import HomePage from "./pages/HomePage.jsx";
 import SportsPage from "./pages/SportsPage";
 import EntertainmentPage from "./pages/EntertainmentPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -15,11 +15,12 @@ import UserManagement from "./pages/admin/UserManagement";
 import { RequireAuth, RequireAdmin } from "./middleware/authMiddleware";
 import Profile from "./pages/Profile";
 import CreateQuiz from './pages/CreateQuiz';
+import CreateQuestion from './components/CreateQuestion';
 import GameHost from './components/GameHost';
 import GamePlayer from './components/GamePlayer';
 import GameResults from './components/GameResults';
+import GameReport from './components/GameReport';
 import Header from './components/Header';
-import CreateQuestion from './components/CreateQuestion';
 
 function App() {
   return (
@@ -70,9 +71,10 @@ function App() {
         />
 
         {/* Game Routes */}
-        <Route path="/host" element={<GameHost />} />
-        <Route path="/join" element={<GamePlayer />} />
-        <Route path="/results" element={<GameResults />} />
+        <Route path="/game/host/:gamePin" element={<GameHost />} />
+        <Route path="/game/join/:gamePin" element={<GamePlayer />} />
+        <Route path="/game/results/:gamePin" element={<GameResults />} />
+        <Route path="/game/report/:gamePin" element={<GameReport />} />
       </Routes>
     </div>
   );

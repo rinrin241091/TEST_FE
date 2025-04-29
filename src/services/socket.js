@@ -1,16 +1,31 @@
 import { io } from 'socket.io-client';
-import { API_ENDPOINTS } from '../config/api';
+
+const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 'http://localhost:3001';
 
 class SocketService {
   constructor() {
     this.socket = null;
+    this.listeners = new Map();
   }
 
   connect() {
     if (!this.socket) {
-      this.socket = io(API_ENDPOINTS.SOCKET, {
-        transports: ['websocket'],
-        autoConnect: true
+      this.socket = io(SOCKET_URL, {
+        withCredentials: true,
+        autoConnect: true,
+      });
+
+      // Setup default event listeners
+      this.socket.on('connect', () => {
+        console.log('Connected to socket server');
+      });
+
+      this.socket.on('disconnect', () => {
+        console.log('Disconnected from socket server');
+      });
+
+      this.socket.on('error', (error) => {
+        console.error('Socket error:', error);
       });
     }
     return this.socket;
@@ -23,87 +38,106 @@ class SocketService {
     }
   }
 
-  // Game creation
-  createGame(questions) {
+  // Game host methods
+  createGame(quiz) {
     if (!this.socket) return;
-    this.socket.emit('create-game', { questions });
+    this.socket.emit('create-game', quiz);
   }
 
-  // Game joining
+  startGame(gamePin) {
+    if (!this.socket) return;
+    this.socket.emit('start-game', gamePin);
+  }
+
+  nextQuestion(gamePin) {
+    if (!this.socket) return;
+    this.socket.emit('next-question', gamePin);
+  }
+
+  // Player methods
   joinGame(gamePin, playerName) {
     if (!this.socket) return;
     this.socket.emit('join-game', { gamePin, playerName });
   }
 
-  // Game starting
-  startGame(gamePin) {
+  submitAnswer(gamePin, questionId, answer, timeSpent) {
     if (!this.socket) return;
-    this.socket.emit('start-game', { gamePin });
-  }
-
-  // Answer submission
-  submitAnswer(gamePin, playerId, answer, timeSpent) {
-    if (!this.socket) return;
-    this.socket.emit('submit-answer', { gamePin, playerId, answer, timeSpent });
-  }
-
-  // Next question
-  nextQuestion(gamePin) {
-    if (!this.socket) return;
-    this.socket.emit('next-question', { gamePin });
+    this.socket.emit('submit-answer', { gamePin, questionId, answer, timeSpent });
   }
 
   // Event listeners
   onGameCreated(callback) {
-    if (!this.socket) return;
-    this.socket.on('game-created', callback);
+    this.addListener('game-created', callback);
   }
 
   onGameJoined(callback) {
-    if (!this.socket) return;
-    this.socket.on('game-joined', callback);
-  }
-
-  onPlayerJoined(callback) {
-    if (!this.socket) return;
-    this.socket.on('player-joined', callback);
+    this.addListener('game-joined', callback);
   }
 
   onGameStarted(callback) {
-    if (!this.socket) return;
-    this.socket.on('game-started', callback);
+    this.addListener('game-started', callback);
   }
 
   onQuestionReceived(callback) {
-    if (!this.socket) return;
-    this.socket.on('question', callback);
+    this.addListener('question', callback);
   }
 
   onAnswerSubmitted(callback) {
-    if (!this.socket) return;
-    this.socket.on('answer-submitted', callback);
+    this.addListener('answer-submitted', callback);
   }
 
-  onGameEnded(callback) {
-    if (!this.socket) return;
-    this.socket.on('game-ended', callback);
+  onGameFinished(callback) {
+    this.addListener('game-finished', callback);
+  }
+
+  onPlayerJoined(callback) {
+    this.addListener('player-joined', callback);
+  }
+
+  onPlayerLeft(callback) {
+    this.addListener('player-left', callback);
   }
 
   onError(callback) {
-    if (!this.socket) return;
-    this.socket.on('error', callback);
+    this.addListener('error', callback);
   }
 
-  // Remove listeners
-  removeListener(event) {
+  // Helper methods
+  addListener(event, callback) {
     if (!this.socket) return;
-    this.socket.off(event);
+    
+    const listener = (...args) => callback(...args);
+    this.socket.on(event, listener);
+    
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event).add(listener);
+  }
+
+  removeListener(event, callback) {
+    if (!this.socket || !this.listeners.has(event)) return;
+    
+    const listeners = this.listeners.get(event);
+    for (const listener of listeners) {
+      if (listener === callback) {
+        this.socket.off(event, listener);
+        listeners.delete(listener);
+        break;
+      }
+    }
   }
 
   removeAllListeners() {
     if (!this.socket) return;
-    this.socket.removeAllListeners();
+    
+    for (const [event, listeners] of this.listeners) {
+      for (const listener of listeners) {
+        this.socket.off(event, listener);
+      }
+    }
+    this.listeners.clear();
   }
 }
 
-export default new SocketService(); 
+export const socketService = new SocketService(); 

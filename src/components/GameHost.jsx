@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -10,7 +11,7 @@ import {
   CircularProgress,
   Grid
 } from '@mui/material';
-import socketService from '../services/socket';
+import { socketService } from '../services/socket.js';
 
 const GameHost = () => {
   const [gamePin, setGamePin] = useState('');

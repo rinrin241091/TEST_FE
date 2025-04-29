@@ -10,10 +10,16 @@ import {
   Typography,
   IconButton,
   Menu,
-  MenuItem
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import socketService from '../services/socket';
+import { socketService } from '../services/socket';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -39,7 +45,7 @@ const HomePage = () => {
       navigate('/login');
       return;
     }
-    navigate('/create-question');
+    navigate('/create-quiz');
   };
 
   const handleJoinGame = (e) => {
@@ -57,7 +63,7 @@ const HomePage = () => {
 
     // Listen for join response
     socketService.onGameJoined(() => {
-      navigate('/join', { state: { gamePin, playerName } });
+      navigate(`/game/join/${gamePin}`, { state: { playerName } });
     });
 
     // Listen for errors
@@ -112,92 +118,108 @@ const HomePage = () => {
         )}
       </Box>
 
-      <Box sx={{ mt: 4 }}>
-        <Grid container spacing={4}>
+      <Box sx={{ mt: 4, textAlign: 'center' }}>
+        <Typography variant="h3" gutterBottom>
+          Welcome to NQuiz
+        </Typography>
+
+        <Box sx={{ mt: 6, display: 'flex', justifyContent: 'center', gap: 4 }}>
           {/* Create Quiz Section */}
-          <Grid item xs={12} md={6}>
-            <Paper
-              sx={{
-                p: 4,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: isAuthenticated ? 'primary.light' : 'grey.300',
-                color: 'white'
+          <Box sx={{ 
+            p: 4, 
+            bgcolor: '#1a2634', 
+            borderRadius: 2,
+            width: '400px',
+            textAlign: 'left'
+          }}>
+            <Typography variant="h5" gutterBottom color="white">
+              Create a quiz
+            </Typography>
+            <Typography variant="body1" color="gray" sx={{ mb: 3 }}>
+              {isAuthenticated 
+                ? 'Play for free with 500 participants'
+                : 'Login required to create quiz'}
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={handleCreateQuiz}
+              sx={{ 
+                bgcolor: isAuthenticated ? 'white' : 'rgba(255,255,255,0.3)', 
+                color: '#1a2634',
+                '&:hover': {
+                  bgcolor: isAuthenticated ? '#f5f5f5' : 'rgba(255,255,255,0.4)'
+                }
               }}
             >
-              <Typography variant="h4" gutterBottom>
-                Create a Quiz
-              </Typography>
-              <Typography variant="body1" sx={{ mb: 3, textAlign: 'center' }}>
-                {isAuthenticated 
-                  ? 'Create your own quiz and host a game for others to join!'
-                  : 'Login to create and host your own quizzes'}
-              </Typography>
-              <Button
-                variant="contained"
-                color={isAuthenticated ? "secondary" : "primary"}
-                size="large"
-                onClick={handleCreateQuiz}
-              >
-                {isAuthenticated ? 'Create Quiz' : 'Login to Create'}
-              </Button>
-            </Paper>
-          </Grid>
+              {isAuthenticated ? 'Create custom' : 'Login to create'}
+            </Button>
+          </Box>
 
           {/* Join Game Section */}
-          <Grid item xs={12} md={6}>
-            <Paper
-              component="form"
-              onSubmit={handleJoinGame}
-              sx={{
-                p: 4,
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
-            >
-              <Typography variant="h4" gutterBottom>
-                Join a Game
-              </Typography>
+          <Box sx={{ 
+            p: 4, 
+            bgcolor: '#1a2634', 
+            borderRadius: 2,
+            width: '400px',
+            textAlign: 'left'
+          }}>
+            <Typography variant="h5" gutterBottom color="white">
+              Join Game
+            </Typography>
+            <Box component="form" onSubmit={handleJoinGame}>
               <TextField
                 fullWidth
-                label="Game PIN"
+                placeholder="Game PIN"
                 value={gamePin}
                 onChange={(e) => setGamePin(e.target.value)}
-                margin="normal"
-                required
+                sx={{ 
+                  mb: 2,
+                  bgcolor: 'white',
+                  borderRadius: 1
+                }}
               />
               <TextField
                 fullWidth
-                label="Your Name"
+                placeholder="Your name"
                 value={playerName}
                 onChange={(e) => setPlayerName(e.target.value)}
-                margin="normal"
-                required
+                sx={{ 
+                  mb: 2,
+                  bgcolor: 'white',
+                  borderRadius: 1
+                }}
               />
-              {error && (
-                <Typography color="error" sx={{ mt: 1 }}>
-                  {error}
-                </Typography>
-              )}
               <Button
                 type="submit"
                 variant="contained"
-                color="primary"
-                size="large"
-                sx={{ mt: 3 }}
+                fullWidth
+                sx={{ 
+                  bgcolor: '#4CAF50',
+                  '&:hover': {
+                    bgcolor: '#45a049'
+                  }
+                }}
               >
-                Join Game
+                Join
               </Button>
-            </Paper>
-          </Grid>
-        </Grid>
+            </Box>
+          </Box>
+        </Box>
       </Box>
+
+      <Snackbar
+        open={!!error}
+        autoHideDuration={6000}
+        onClose={() => setError('')}
+      >
+        <Alert 
+          onClose={() => setError('')} 
+          severity="error"
+          sx={{ width: '100%' }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };
