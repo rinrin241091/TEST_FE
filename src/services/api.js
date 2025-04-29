@@ -1,5 +1,6 @@
 // src/services/api.js
 import axios from "axios";
+import { API_ENDPOINTS } from '../config/api';
 
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:3000";
 
@@ -83,5 +84,66 @@ export const getQuiz = (id) => api.get(`/quizzes/${id}`);
 export const createQuiz = (quizData) => api.post("/quizzes", quizData);
 export const updateQuiz = (id, quizData) => api.put(`/quizzes/${id}`, quizData);
 export const deleteQuiz = (id) => api.delete(`/quizzes/${id}`);
+
+const getExplanation = async (questionId) => {
+  try {
+    const response = await axios.get(`${API_URL}/questions/${questionId}/explanation`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting explanation:', error);
+    throw error;
+  }
+};
+
+const getGameResults = async (gamePin) => {
+  try {
+    const response = await axios.get(`${API_URL}/games/${gamePin}/results`);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting game results:', error);
+    throw error;
+  }
+};
+
+export const questionService = {
+  createQuestion: async (questionData) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.CREATE_QUESTION, questionData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  createQuiz: async (quizData) => {
+    try {
+      const response = await api.post(API_ENDPOINTS.CREATE_QUIZ, quizData);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  getQuestions: async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.GET_QUESTIONS);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  getQuizzes: async () => {
+    try {
+      const response = await api.get(API_ENDPOINTS.GET_QUIZZES);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error;
+    }
+  },
+
+  getExplanation,
+  getGameResults
+};
 
 export default api;
