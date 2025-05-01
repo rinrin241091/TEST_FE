@@ -14,14 +14,24 @@ import {
   DialogContent,
   DialogActions,
   Button,
-  CircularProgress
+  CircularProgress,
+  Grid,
+  Card,
+  CardContent,
+  Divider,
+  Tooltip,
+  Chip,
+  LinearProgress
 } from '@mui/material';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
+import ShareIcon from '@mui/icons-material/Share';
+import DownloadIcon from '@mui/icons-material/Download';
 import { useParams, useNavigate } from 'react-router-dom';
 import { socketService } from '../services/socket';
 import { questionService } from '../services/api';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
 
 const GameReport = () => {
   const { gamePin } = useParams();
@@ -31,20 +41,22 @@ const GameReport = () => {
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [explanation, setExplanation] = useState('');
   const [explanationLoading, setExplanationLoading] = useState(false);
+  const [isHost, setIsHost] = useState(false);
 
   useEffect(() => {
-    // Lấy kết quả từ socket
+    // Get results from socket
     socketService.onGameResults((data) => {
       setResults(data);
       setLoading(false);
     });
 
-    // Nếu không có kết quả, lấy từ API
+    // If no results, get from API
     const fetchResults = async () => {
       try {
         const response = await questionService.getGameResults(gamePin);
         if (response.success) {
           setResults(response.data);
+          setIsHost(response.data.isHost || false);
         }
       } catch (error) {
         console.error('Error fetching results:', error);
@@ -81,6 +93,43 @@ const GameReport = () => {
     setExplanation('');
   };
 
+  const handleShareResults = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'My Quiz Results',
+        text: `I scored ${results.score} out of ${results.totalQuestions} in the quiz!`,
+        url: window.location.href
+      });
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      navigator.clipboard.writeText(window.location.href);
+      alert('Results link copied to clipboard!');
+    }
+  };
+
+  const handleDownloadResults = () => {
+    const data = {
+      score: results.score,
+      totalQuestions: results.totalQuestions,
+      questions: results.questions.map(q => ({
+        question: q.text,
+        yourAnswer: q.userAnswer,
+        correctAnswer: q.correctAnswer,
+        isCorrect: q.isCorrect
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `quiz-results-${gamePin}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
@@ -99,59 +148,123 @@ const GameReport = () => {
     );
   }
 
-  return (
-    <Container maxWidth="md">
-      <Box sx={{ mt: 4, mb: 4 }}>
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <Typography variant="h4" gutterBottom align="center">
-            Quiz Results
-          </Typography>
-          <Typography variant="h6" gutterBottom align="center">
-            Score: {results.score} / {results.totalQuestions}
-          </Typography>
-          <Typography variant="body1" align="center" color="text.secondary">
-            {results.score === results.totalQuestions 
-              ? 'Perfect score! Well done!'
-              : `You answered ${results.score} out of ${results.totalQuestions} questions correctly.`}
-          </Typography>
-        </Paper>
+  // Prepare data for score distribution chart
+  const scoreData = results.questions.map((q, index) => ({
+    name: `Q${index + 1}`,
+    score: q.isCorrect ? 1 : 0
+  }));
 
-        <List>
-          {results.questions.map((question, index) => (
-            <Paper key={index} sx={{ mb: 2 }}>
-              <ListItem>
-                <ListItemText
-                  primary={`Question ${index + 1}: ${question.text}`}
-                  secondary={
-                    <>
-                      <Typography component="span" variant="body2" color="text.primary">
-                        Your answer: {question.userAnswer}
-                      </Typography>
-                      <br />
-                      <Typography component="span" variant="body2" color="text.primary">
-                        Correct answer: {question.correctAnswer}
-                      </Typography>
-                    </>
-                  }
-                />
-                <ListItemSecondaryAction>
-                  {question.isCorrect ? (
-                    <CheckCircleIcon color="success" sx={{ mr: 2 }} />
-                  ) : (
-                    <CancelIcon color="error" sx={{ mr: 2 }} />
-                  )}
-                  <IconButton
-                    edge="end"
-                    onClick={() => handleExplainQuestion(question)}
-                    title="Get explanation"
-                  >
-                    <LightbulbIcon />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
+  return (
+    <Container maxWidth="lg">
+      <Box sx={{ mt: 4, mb: 4 }}>
+        <Grid container spacing={3}>
+          {/* Score Summary */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h4" gutterBottom align="center">
+                Quiz Results
+              </Typography>
+              <Box sx={{ textAlign: 'center', mb: 2 }}>
+                <Typography variant="h2" color="primary">
+                  {results.score}/{results.totalQuestions}
+                </Typography>
+                <Typography variant="h6" color="text.secondary">
+                  {Math.round((results.score / results.totalQuestions) * 100)}% Correct
+                </Typography>
+              </Box>
+              <LinearProgress 
+                variant="determinate" 
+                value={(results.score / results.totalQuestions) * 100} 
+                sx={{ height: 10, borderRadius: 5, mb: 2 }}
+              />
+              <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+                <Button
+                  variant="contained"
+                  startIcon={<ShareIcon />}
+                  onClick={handleShareResults}
+                >
+                  Share
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<DownloadIcon />}
+                  onClick={handleDownloadResults}
+                >
+                  Download
+                </Button>
+              </Box>
             </Paper>
-          ))}
-        </List>
+          </Grid>
+
+          {/* Score Distribution Chart */}
+          <Grid item xs={12} md={6}>
+            <Paper sx={{ p: 3, height: '100%' }}>
+              <Typography variant="h6" gutterBottom>
+                Score Distribution
+              </Typography>
+              <Box sx={{ height: 300 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={scoreData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Bar dataKey="score" fill="#1976d2" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </Box>
+            </Paper>
+          </Grid>
+
+          {/* Questions List */}
+          <Grid item xs={12}>
+            <Paper sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Questions Review
+              </Typography>
+              <List>
+                {results.questions.map((question, index) => (
+                  <Paper key={index} sx={{ mb: 2 }}>
+                    <ListItem>
+                      <ListItemText
+                        primary={
+                          <Box>
+                            <Typography variant="subtitle1">
+                              Question {index + 1}: {question.text}
+                            </Typography>
+                            <Box sx={{ mt: 1 }}>
+                              <Chip
+                                label={`Your answer: ${question.userAnswer}`}
+                                color={question.isCorrect ? "success" : "error"}
+                                size="small"
+                                sx={{ mr: 1 }}
+                              />
+                              <Chip
+                                label={`Correct answer: ${question.correctAnswer}`}
+                                color="primary"
+                                size="small"
+                              />
+                            </Box>
+                          </Box>
+                        }
+                      />
+                      <ListItemSecondaryAction>
+                        <Tooltip title="Get explanation">
+                          <IconButton
+                            edge="end"
+                            onClick={() => handleExplainQuestion(question)}
+                          >
+                            <LightbulbIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </ListItemSecondaryAction>
+                    </ListItem>
+                  </Paper>
+                ))}
+              </List>
+            </Paper>
+          </Grid>
+        </Grid>
 
         <Box sx={{ mt: 3, textAlign: 'center' }}>
           <Button
